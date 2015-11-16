@@ -13,12 +13,16 @@ import simplejson
 import zmq
 import time
 
+import time
+from threading import Timer
+
 import datetime
 import logging
 from logging import handlers
 import structlog
 
 import feedback
+from feedback.frames import FrameHistory
 import pid
 
 def add_timestamp(_, __, event_dict):
@@ -115,20 +119,18 @@ yaw_sp = 0
 # todo: All PID loops ought to be organized by a dictionary or an array. They can be looped through or updated by key
 logger.info('ZMQ context set, connections configured')
 # Roll, Pitch and Yaw PID controllers
-r_pid = pid.PID_RP(name="roll", P=35, I=0.3, D=8, Integrator_max=5, Integrator_min=-5, set_point=0,
+r_pid = pid.PID_RP(name="roll", P=10, I=.001, D=5, Integrator_max=10, Integrator_min=-10, set_point=.75,
                zmq_connection=pid_viz_conn)
-p_pid = pid.PID_RP(name="pitch", P=35, I=0.3, D=8, Integrator_max=5, Integrator_min=-5, set_point=0,
+p_pid = pid.PID_RP(name="pitch", P=10, I=.001, D=5, Integrator_max=10, Integrator_min=-10, set_point=.75,
                zmq_connection=pid_viz_conn)
-y_pid = pid.PID_RP(name="yaw", P=5, I=0, D=0.35, Integrator_max=5, Integrator_min=-5, set_point=0,
+y_pid = pid.PID_RP(name="yaw", P=2, I=0, D=0, Integrator_max=5, Integrator_min=-5, set_point=0,
                zmq_connection=pid_viz_conn)
 
 # Vertical position and velocity PID loops
-v_pid = pid.PID_RP(name="position", P=0.6, D=0.0075, I=0.25, Integrator_max=100 / 0.035, Integrator_min=-100 / 0.035,
-               set_point=.5,
-               zmq_connection=pid_viz_conn)
+v_pid = pid.PID_RP(name="position", P=1, D=0, I=0, Integrator_max=100/0.035, Integrator_min=-100/0.035,set_point=1,zmq_connection=pid_viz_conn)
 
 # todo: Testing Velocity Control on Velocity """
-vv_pid = pid.PID_V(name="velocity", p=0.25, i=1e-10, d=1e-10, set_point=0)
+vv_pid = pid.PID_V(name="velocity", p=.3, i=1e-10, d=1e-8, set_point=0)
 
 logger.info('PIDs Initialized')
 
@@ -198,7 +200,7 @@ def signal_handler(signal, frame):
 if __name__ == "__main__":
 
     signal.signal(signal.SIGINT, signal_handler)
-    frame_history = feedback.FrameHistory(filtering=False)
+    frame_history = FrameHistory(filtering=False)
     x, y, z, yaw, roll, pitch = 0, 0, 0, 0, 0, 0
     ts, dt, prev_z, prev_vz, midi_acc, on_detect_counter, ctrl_time = 0, 0, 0, 0, 0, 0, 0
     prev_t, last_ts = time.time(), time.time()
@@ -215,10 +217,11 @@ if __name__ == "__main__":
             optitrack_conn.send(b'Ack')
 
             if frame_history.update(frame_data) is None:
-                print("Cont")
+                #print("Cont")
                 continue
             detected = bool(frame_data[-1])
-            logger.debug('Received: {}'.format(frame_data))
+
+            #logger.debug('Received: {}'.format(frame_data))
 
             if motors_not_wound:
                 logger.info('Motors winding up...')
@@ -227,11 +230,14 @@ if __name__ == "__main__":
                 logger.info('Motors wound.')
 
             state = frame_history.filtered_frame.state
-            logger.debug('state', x=state[0], y=state[1], z=state[2], yaw=state[3],
-                         roll=state[4], pitch=state[5])
+
+            logger.debug('state', x=state[0], y=state[1], z=state[2], yaw=state[3], roll=state[4], pitch=state[5])
+            """
             print("State Feedback: x:{} y:{} z:{} yaw:{} roll:{} pitch:{}".format(state[0], state[1], state[2],
                                                                                   state[3], state[4], state[5]))
+            """
             x, y, z, angle, roll, pitch = state[0], state[1], state[2], state[3], state[4], state[5]
+
 
             # Get the set-points (if there are any)
             try:
@@ -241,15 +247,14 @@ if __name__ == "__main__":
                     r_pid.set_point = ctrl_sp["set-points"]["roll"]
                     p_pid.set_point = ctrl_sp["set-points"]["pitch"]
                     midi_acc = ctrl_sp["set-points"]["velocity"]
-                    logger.debug('set_points', yaw_sp=yaw_sp, roll_sp=r_pid.set_point,
-                                 pitch_sp=p_pid.set_point, midi_acc=midi_acc)
+                    #logger.debug('set_points', yaw_sp=yaw_sp, roll_sp=r_pid.set_point,pitch_sp=p_pid.set_point, midi_acc=midi_acc)
             except zmq.error.Again:
                 pass
 
             step = time.time() - last_ts
-            logger.debug('time_step', dt=step)
+            #logger.debug('time_step', dt=step)
 
-            if (max_step >= step >= min_step) and detected:
+            if detected: #(max_step >= step >= min_step) and detected:
 
                 """
                 check to see if we have been tracking the vehicle for more than 5 frames, e.g. if we are just
@@ -266,14 +271,14 @@ if __name__ == "__main__":
                     yaw_out = yaw = y_pid.update(((angle - yaw_sp + 360 + 180) % 360) - 180)
 
                     velocity = v_pid.update(z)
-                    logger.debug('pid', name='v_pid', output=velocity)
+                    #logger.debug('pid', name='v_pid', output=velocity)
                     velocity = max(min(velocity, 10), -10)  # Limit vertical velocity between -1 and 1 m/sec
                     vv_pid.set_point = velocity
                     dt = (time.time() - prev_t)
                     curr_velocity = (z - prev_z) / dt
                     curr_acc = (curr_velocity - prev_vz) / dt
                     thrust_sp = vv_pid.update(curr_velocity) + 0.50
-                    logger.debug('pid', name='vv_pid', output=velocity)
+                    #logger.debug('pid', name='vv_pid', output=velocity)
 
 
                     # print "TH={:.2f}".format(thrust_sp)
@@ -295,6 +300,8 @@ if __name__ == "__main__":
                     pitch_corr = pitch_sp * math.cos(math.radians(-angle)) - roll_sp * math.sin(math.radians(-angle))
                     roll_corr = pitch_sp * math.sin(math.radians(-angle)) + roll_sp * math.cos(math.radians(-angle))
 
+                    """ #comented out to see if these affect the timing of the program
+
                     print "OUT: roll={:2.2f}, pitch={:2.2f}, thrust={:5.2f}, dt={:0.3f}, fps={:2.1f}".format(roll_corr,
                                                                                                              pitch_corr,
                                                                                                              thrust_sp,
@@ -305,17 +312,17 @@ if __name__ == "__main__":
                                                                                                              dt,
                                                                                                              1 / dt,
                                                                                                              curr_velocity)
+                    """
+                    logger.debug('output', roll=roll_corr, pitch=pitch_corr, yaw=yaw_out, thrust=thrust_sp, velocity=curr_velocity, dt=dt, fps=1 / dt)
 
-                    logger.debug('output', roll=roll_corr, pitch=pitch_corr, yaw=yaw_out, \
-                                 thrust=thrust_sp, velocity=curr_velocity, dt=dt, fps=1 / dt)
-
-                    cmd["ctrl"]["roll"] = roll_corr
+                    cmd["ctrl"]["roll"] =roll_corr
                     cmd["ctrl"]["pitch"] = pitch_corr
                     cmd["ctrl"]["thrust"] = thrust_sp * 100
                     cmd["ctrl"]["yaw"] = yaw_out
+
                 else:
                     on_detect_counter += 1
-                    logger.debug('Increment on_detect_counter', value=on_detect_counter)
+                    #logger.debug('Increment on_detect_counter', value=on_detect_counter)
             else:
                 # todo: let's make this a function
                 cmd["ctrl"]["roll"] = 0
@@ -333,7 +340,7 @@ if __name__ == "__main__":
                 p_pid.Integrator = 0.0
                 y_pid.Integrator = 0.0
                 on_detect_counter = 0
-                logger.debug('Reset on_detect_counter', value=0)
+                #logger.debug('Reset on_detect_counter', value=0)
             client_conn.send_json(cmd)
             last_ts = time.time()
 
