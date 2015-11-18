@@ -33,6 +33,38 @@ def add_timestamp(_, __, event_dict):
 def zmq_processor(_, __, event_dict):
     return event_dict
 
+class Interrupt(object):
+    def __init__(self, interval, function, *args, **kwargs):
+        self._timer = None
+        self.interval = interval
+        self.function = function
+        self.args = args
+        self.kwargs = kwargs
+        self.is_running = False
+        self.start()
+
+    def _run(self):
+        self.is_running = False
+        self.start()
+        self.function(*self.args, **self.kwargs)
+
+    def start(self):
+        if not self.is_running:
+            self._timer = Timer(self.interval, self._run)
+            self._timer.daemon = True
+            self._timer.start()
+            self.is_running = True
+
+    def stop(self):
+        self._timer.cancel()
+        self.is_running = False
+
+def write_to_log(args=None, kwargs = None):
+
+    logger.debug('input',pos_x=x, pos_y=y, pos_z=z, pos_yaw=angle, pos_roll= roll)
+    logger.debug('output', roll_out=cmd["ctrl"]["roll"], pitch_out=cmd["ctrl"]["pitch"], yaw_out=cmd["ctrl"]["yaw"], thrust=cmd["ctrl"]["thrust"])
+
+
 structlog.configure(
     processors=[
         structlog.stdlib.filter_by_level,
@@ -74,6 +106,8 @@ logger.info('Logging Initialized')
 
 YAW_CAP = 200
 yaw_sp = 0
+
+x, y, z,angle ,yaw, roll, pitch = 0,0, 0, 0, 0, 0, 0
 
 cmd = {
     "version": 1,
@@ -119,15 +153,15 @@ yaw_sp = 0
 # todo: All PID loops ought to be organized by a dictionary or an array. They can be looped through or updated by key
 logger.info('ZMQ context set, connections configured')
 # Roll, Pitch and Yaw PID controllers
-r_pid = pid.PID_RP(name="roll", P=10, I=.001, D=5, Integrator_max=10, Integrator_min=-10, set_point=.75,
+r_pid = pid.PID_RP(name="roll", P=10, I=.001, D=5, Integrator_max=10, Integrator_min=-10, set_point=0,
                zmq_connection=pid_viz_conn)
-p_pid = pid.PID_RP(name="pitch", P=10, I=.001, D=5, Integrator_max=10, Integrator_min=-10, set_point=.75,
+p_pid = pid.PID_RP(name="pitch", P=10, I=.001, D=5, Integrator_max=10, Integrator_min=-10, set_point=0,
                zmq_connection=pid_viz_conn)
 y_pid = pid.PID_RP(name="yaw", P=2, I=0, D=0, Integrator_max=5, Integrator_min=-5, set_point=0,
                zmq_connection=pid_viz_conn)
 
 # Vertical position and velocity PID loops
-v_pid = pid.PID_RP(name="position", P=1, D=0, I=0, Integrator_max=100/0.035, Integrator_min=-100/0.035,set_point=1,zmq_connection=pid_viz_conn)
+v_pid = pid.PID_RP(name="position", P=1, D=0, I=0, Integrator_max=100/0.035, Integrator_min=-100/0.035,set_point=.75,zmq_connection=pid_viz_conn)
 
 # todo: Testing Velocity Control on Velocity """
 vv_pid = pid.PID_V(name="velocity", p=.3, i=1e-10, d=1e-8, set_point=0)
@@ -141,6 +175,8 @@ max_step = 11  # ms
 min_step = 5  # ms
 ctrl_time = 0
 ts = 0
+
+log_writer = Interrupt(.1, write_to_log)
 
 
 def wind_up_motors(step_time=1e-2):
@@ -201,13 +237,11 @@ if __name__ == "__main__":
 
     signal.signal(signal.SIGINT, signal_handler)
     frame_history = FrameHistory(filtering=False)
-    x, y, z, yaw, roll, pitch = 0, 0, 0, 0, 0, 0
     ts, dt, prev_z, prev_vz, midi_acc, on_detect_counter, ctrl_time = 0, 0, 0, 0, 0, 0, 0
     prev_t, last_ts = time.time(), time.time()
     min_step, max_step = 7e-3, 9e-3  # s
     motors_not_wound = True
     logger.info('FrameHistory Initialized')
-
     while True:
 
         try:
@@ -231,7 +265,6 @@ if __name__ == "__main__":
 
             state = frame_history.filtered_frame.state
 
-            logger.debug('state', x=state[0], y=state[1], z=state[2], yaw=state[3], roll=state[4], pitch=state[5])
             """
             print("State Feedback: x:{} y:{} z:{} yaw:{} roll:{} pitch:{}".format(state[0], state[1], state[2],
                                                                                   state[3], state[4], state[5]))
@@ -247,7 +280,6 @@ if __name__ == "__main__":
                     r_pid.set_point = ctrl_sp["set-points"]["roll"]
                     p_pid.set_point = ctrl_sp["set-points"]["pitch"]
                     midi_acc = ctrl_sp["set-points"]["velocity"]
-                    #logger.debug('set_points', yaw_sp=yaw_sp, roll_sp=r_pid.set_point,pitch_sp=p_pid.set_point, midi_acc=midi_acc)
             except zmq.error.Again:
                 pass
 
@@ -313,7 +345,7 @@ if __name__ == "__main__":
                                                                                                              1 / dt,
                                                                                                              curr_velocity)
                     """
-                    logger.debug('output', roll=roll_corr, pitch=pitch_corr, yaw=yaw_out, thrust=thrust_sp, velocity=curr_velocity, dt=dt, fps=1 / dt)
+
 
                     cmd["ctrl"]["roll"] =roll_corr
                     cmd["ctrl"]["pitch"] = pitch_corr
@@ -346,3 +378,6 @@ if __name__ == "__main__":
 
         except simplejson.scanner.JSONDecodeError as e:
             print e
+
+
+

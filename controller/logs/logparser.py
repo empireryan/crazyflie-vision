@@ -2,8 +2,8 @@ __author__ = 'Kevin-Patxi'
 
 
 import matplotlib.pyplot as plt
-
-with open("octrl.log",'r') as f:
+import json
+with open("experiment_history.log.3",'r') as f:
 
     loc_x = []
     loc_y = []
@@ -19,25 +19,23 @@ with open("octrl.log",'r') as f:
     i=0
 
     for line in f:
-        if "DEBUG" in line:
-            if ("Processed State" in line)&(not(in_out_toggle)):
+            if ("input" in line)&(not(in_out_toggle)):
                 in_out_toggle = 1
-                parts = line.split()
-                loc_x.append(float(parts[6].split(':')[1]))
-                loc_y.append(float(parts[7].split(':')[1]))
-                loc_z.append(float(parts[8].split(':')[1]))
-                loc_yaw.append(float(parts[9].split(':')[1]))
-                loc_roll.append(float(parts[10].split(':')[1]))
-                loc_pitch.append(float(parts[11].split(':')[1]))
+                parts = json.loads(line)
+                loc_x.append(float(parts['pos_x']))
+                loc_y.append(float(parts['pos_y']))
+                loc_z.append(float(parts['pos_z']))
+                loc_yaw.append(float(parts['pos_yaw']))
+                loc_roll.append(float(parts['pos_roll']))
+                loc_pitch.append(float(parts['pos_roll']))
 
-            if ("Control Output" in line) &(in_out_toggle):
+            if ("output" in line) &(in_out_toggle):
                 in_out_toggle = 0
-                parts = line.split(',')
-
-                roll.append(float(parts[0].split('=')[1]))
-                pitch.append(float(parts[1].split('=')[1]))
-                yaw.append(float(parts[2].split('=')[1]))
-                thrust.append(float(parts[3].split('=')[1]))
+                parts = json.loads(line)
+                roll.append(float(parts['roll_out']))
+                pitch.append(float(parts['pitch_out']))
+                yaw.append(float(parts['yaw_out']))
+                thrust.append(float(parts['thrust']))
 
                 i = i+1
     f.close()
