@@ -61,7 +61,7 @@ class Interrupt(object):
 
 def write_to_log(args=None, kwargs = None):
 
-    logger.debug('input',pos_x=x, pos_y=y, pos_z=z, pos_yaw=angle, pos_roll= roll, pos_pitch = pitch)
+    logger.debug('input',pos_x=x, pos_y=y, pos_z=z, pos_yaw=angle, pos_roll= roll)
     logger.debug('output', roll_out=cmd["ctrl"]["roll"], pitch_out=cmd["ctrl"]["pitch"], yaw_out=cmd["ctrl"]["yaw"], thrust=cmd["ctrl"]["thrust"])
 
 
@@ -153,18 +153,18 @@ yaw_sp = 0
 # todo: All PID loops ought to be organized by a dictionary or an array. They can be looped through or updated by key
 logger.info('ZMQ context set, connections configured')
 # Roll, Pitch and Yaw PID controllers
-r_pid = pid.PID_RP(name="roll", P=15, I=.02, D=7, Integrator_max=10, Integrator_min=-10, set_point=0,
+r_pid = pid.PID_RP(name="roll", P=10, I=.001, D=5, Integrator_max=10, Integrator_min=-10, set_point=0,
                zmq_connection=pid_viz_conn)
-p_pid = pid.PID_RP(name="pitch", P=15, I=.02, D=7, Integrator_max=10, Integrator_min=-10, set_point=0,
+p_pid = pid.PID_RP(name="pitch", P=10, I=.001, D=5, Integrator_max=10, Integrator_min=-10, set_point=0,
                zmq_connection=pid_viz_conn)
-y_pid = pid.PID_RP(name="yaw", P=5, I=0, D=0, Integrator_max=5, Integrator_min=-5, set_point=0,
+y_pid = pid.PID_RP(name="yaw", P=2, I=0, D=0, Integrator_max=5, Integrator_min=-5, set_point=0,
                zmq_connection=pid_viz_conn)
 
 # Vertical position and velocity PID loops
 v_pid = pid.PID_RP(name="position", P=1, D=0, I=0, Integrator_max=100/0.035, Integrator_min=-100/0.035,set_point=.75,zmq_connection=pid_viz_conn)
 
 # todo: Testing Velocity Control on Velocity """
-vv_pid = pid.PID_V(name="velocity", p=.4, i=1e-10, d=1e-8, set_point=0)
+vv_pid = pid.PID_V(name="velocity", p=.3, i=1e-10, d=1e-8, set_point=0)
 
 logger.info('PIDs Initialized')
 
@@ -187,7 +187,7 @@ def wind_up_motors(step_time=1e-2):
 
     """
     try:
-        logger.info("Spinning up motors...")
+        print("Spinning up motors...")
         for i in range(2500, 4500, 1):
             cmd["ctrl"]["roll"] = 0
             cmd["ctrl"]["pitch"] = 0
@@ -196,9 +196,9 @@ def wind_up_motors(step_time=1e-2):
             client_conn.send_json(cmd)
             time.sleep(step_time)
     except:
-        logger.info("Motor wind-up failed")
+        print("Motor wind-up failed")
 
-    logger.info("Motor spin-up complete")
+    print("Motor spin-up complete")
     client_conn.send_json(cmd)
 
 
@@ -212,7 +212,7 @@ def signal_handler(signal, frame):
 
     """
     logger.info('Kill Sequence Initiated')
-    logger.info('Kill Command Detected...')
+    print 'Kill Command Detected...'
     cmd["ctrl"]["roll"] = 0
     cmd["ctrl"]["pitch"] = 0
     cmd["ctrl"]["thrust"] = 0
@@ -229,7 +229,7 @@ def signal_handler(signal, frame):
     y_pid.Integrator = 0.0
     on_detect_counter = 0
     client_conn.send_json(cmd, zmq.NOBLOCK)
-    logger.info('Vehicle Killed')
+    print 'Vehicle Killed'
     sys.exit(0)
 
 
@@ -251,11 +251,7 @@ if __name__ == "__main__":
             optitrack_conn.send(b'Ack')
 
             if frame_history.update(frame_data) is None:
-<<<<<<< HEAD
                 #print("Cont")
-=======
-                logger.info("Cont")
->>>>>>> origin/extrapolate_and_filter
                 continue
             detected = bool(frame_data[-1])
 
@@ -268,15 +264,11 @@ if __name__ == "__main__":
                 logger.info('Motors wound.')
 
             state = frame_history.filtered_frame.state
-<<<<<<< HEAD
 
             """
             print("State Feedback: x:{} y:{} z:{} yaw:{} roll:{} pitch:{}".format(state[0], state[1], state[2],
                                                                                   state[3], state[4], state[5]))
             """
-=======
-            logger.debug('state', x=state[0], y=state[1], z=state[2], yaw=state[3], roll=state[4], pitch=state[5])
->>>>>>> origin/extrapolate_and_filter
             x, y, z, angle, roll, pitch = state[0], state[1], state[2], state[3], state[4], state[5]
 
 
@@ -288,11 +280,6 @@ if __name__ == "__main__":
                     r_pid.set_point = ctrl_sp["set-points"]["roll"]
                     p_pid.set_point = ctrl_sp["set-points"]["pitch"]
                     midi_acc = ctrl_sp["set-points"]["velocity"]
-<<<<<<< HEAD
-=======
-                    logger.debug('set_points', yaw_sp=yaw_sp, roll_sp=r_pid.set_point, pitch_sp=p_pid.set_point,
-                                 midi_acc=midi_acc)
->>>>>>> origin/extrapolate_and_filter
             except zmq.error.Again:
                 pass
 
@@ -345,7 +332,6 @@ if __name__ == "__main__":
                     pitch_corr = pitch_sp * math.cos(math.radians(-angle)) - roll_sp * math.sin(math.radians(-angle))
                     roll_corr = pitch_sp * math.sin(math.radians(-angle)) + roll_sp * math.cos(math.radians(-angle))
 
-<<<<<<< HEAD
                     """ #comented out to see if these affect the timing of the program
 
                     print "OUT: roll={:2.2f}, pitch={:2.2f}, thrust={:5.2f}, dt={:0.3f}, fps={:2.1f}".format(roll_corr,
@@ -360,10 +346,6 @@ if __name__ == "__main__":
                                                                                                              curr_velocity)
                     """
 
-=======
-                    logger.debug('output', roll=roll_corr, pitch=pitch_corr, yaw=yaw_out,\
-                                 thrust=thrust_sp, velocity=curr_velocity, dt=dt, fps=1 / dt)
->>>>>>> origin/extrapolate_and_filter
 
                     cmd["ctrl"]["roll"] =roll_corr
                     cmd["ctrl"]["pitch"] = pitch_corr
