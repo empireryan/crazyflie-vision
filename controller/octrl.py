@@ -155,7 +155,7 @@ logger.info('ZMQ context set, connections configured')
 # Roll, Pitch and Yaw PID controllers
 r_pid = pid.PID_RP(name="roll", P=15, I=.02, D=7, Integrator_max=10, Integrator_min=-10, set_point=0,
                zmq_connection=pid_viz_conn)
-p_pid = pid.PID_RP(name="pitch", P=15, I=.02, D=5, Integrator_max=10, Integrator_min=-10, set_point=0,
+p_pid = pid.PID_RP(name="pitch", P=15, I=.02, D=7, Integrator_max=10, Integrator_min=-10, set_point=0,
                zmq_connection=pid_viz_conn)
 y_pid = pid.PID_RP(name="yaw", P=5, I=0, D=0, Integrator_max=5, Integrator_min=-5, set_point=0,
                zmq_connection=pid_viz_conn)
