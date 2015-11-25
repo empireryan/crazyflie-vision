@@ -252,11 +252,7 @@ if __name__ == "__main__":
 
             if frame_history.update(frame_data) is None:
 <<<<<<< HEAD
-<<<<<<< HEAD
                 #print("Cont")
-=======
-                logger.info("Cont")
->>>>>>> origin/extrapolate_and_filter
 =======
                 logger.info("Cont")
 >>>>>>> origin/extrapolate_and_filter
@@ -273,15 +269,11 @@ if __name__ == "__main__":
 
             state = frame_history.filtered_frame.state
 <<<<<<< HEAD
-<<<<<<< HEAD
 
             """
             print("State Feedback: x:{} y:{} z:{} yaw:{} roll:{} pitch:{}".format(state[0], state[1], state[2],
                                                                                   state[3], state[4], state[5]))
             """
-=======
-            logger.debug('state', x=state[0], y=state[1], z=state[2], yaw=state[3], roll=state[4], pitch=state[5])
->>>>>>> origin/extrapolate_and_filter
 =======
             logger.debug('state', x=state[0], y=state[1], z=state[2], yaw=state[3], roll=state[4], pitch=state[5])
 >>>>>>> origin/extrapolate_and_filter
@@ -297,11 +289,6 @@ if __name__ == "__main__":
                     p_pid.set_point = ctrl_sp["set-points"]["pitch"]
                     midi_acc = ctrl_sp["set-points"]["velocity"]
 <<<<<<< HEAD
-<<<<<<< HEAD
-=======
-                    logger.debug('set_points', yaw_sp=yaw_sp, roll_sp=r_pid.set_point, pitch_sp=p_pid.set_point,
-                                 midi_acc=midi_acc)
->>>>>>> origin/extrapolate_and_filter
 =======
                     logger.debug('set_points', yaw_sp=yaw_sp, roll_sp=r_pid.set_point, pitch_sp=p_pid.set_point,
                                  midi_acc=midi_acc)
@@ -359,7 +346,6 @@ if __name__ == "__main__":
                     roll_corr = pitch_sp * math.sin(math.radians(-angle)) + roll_sp * math.cos(math.radians(-angle))
 
 <<<<<<< HEAD
-<<<<<<< HEAD
                     """ #comented out to see if these affect the timing of the program
 
                     print "OUT: roll={:2.2f}, pitch={:2.2f}, thrust={:5.2f}, dt={:0.3f}, fps={:2.1f}".format(roll_corr,
@@ -375,8 +361,6 @@ if __name__ == "__main__":
                     """
 
 =======
-=======
->>>>>>> origin/extrapolate_and_filter
                     logger.debug('output', roll=roll_corr, pitch=pitch_corr, yaw=yaw_out,\
                                  thrust=thrust_sp, velocity=curr_velocity, dt=dt, fps=1 / dt)
 >>>>>>> origin/extrapolate_and_filter
