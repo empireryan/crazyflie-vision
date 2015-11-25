@@ -3,7 +3,7 @@ __author__ = 'Kevin-Patxi'
 
 import matplotlib.pyplot as plt
 import json
-with open("experiment_history.log.3",'r') as f:
+with open("experiment_history.log",'r') as f:
 
     loc_x = []
     loc_y = []
@@ -27,7 +27,7 @@ with open("experiment_history.log.3",'r') as f:
                 loc_z.append(float(parts['pos_z']))
                 loc_yaw.append(float(parts['pos_yaw']))
                 loc_roll.append(float(parts['pos_roll']))
-                loc_pitch.append(float(parts['pos_roll']))
+                loc_pitch.append(float(parts['pos_pitch']))
 
             if ("output" in line) &(in_out_toggle):
                 in_out_toggle = 0
@@ -78,6 +78,17 @@ with open("experiment_history.log.3",'r') as f:
 
 
     plt.figure(5)
+    plt.subplot(211)
+    plt.plot(loc_x)
+    plt.ylabel('x')
+    plt.axhline(0)
+    plt.subplot(212)
+    plt.plot(loc_y)
+    plt.axhline(0)
+    plt.ylabel('y')
+
+
+    plt.figure(6)
     plt.plot(loc_x[-2000:],loc_y[-2000:])
     plt.axhline(0)
     plt.axvline(0)
